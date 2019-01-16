@@ -11,7 +11,7 @@ public class County extends LitePalSupport {
     //String变量countyName用来记录先的名字，对应数据表中 县 的这一列
     private String countyName;
 
-    //String变量weatherId用来记录县多对应的天气id，对应数据表中天气id这一列
+    //String变量weatherId用来记录县对应的天气id，对应数据表中天气id这一列
     private String weatherId;
 
     //int变量cityId用来当前市所属市的id值，对应当前数据表中的所属市的id值这一列

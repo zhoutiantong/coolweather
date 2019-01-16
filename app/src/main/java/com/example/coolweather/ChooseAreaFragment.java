@@ -13,13 +13,24 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.coolweather.db.City;
 import com.example.coolweather.db.County;
 import com.example.coolweather.db.Province;
+import com.example.coolweather.util.HttpUtil;
+import com.example.coolweather.util.Utility;
 
+import org.litepal.LitePal;
+import org.litepal.crud.LitePalSupport;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
 
 //创建一个选择区域碎片
 public class ChooseAreaFragment extends Fragment {
@@ -108,24 +119,33 @@ public class ChooseAreaFragment extends Fragment {
             @Override
             //在该方法中写具体的点击事件逻辑
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                //当点击ListView点击级别为LEVEL_PROVINCE常量时
+                //当点击ListView点击级别为LEVEL_PROVINCE = 0常量时
                 if (currentLevel == LEVEL_PROVINCE){
                     //代表省列表的List数组调用get()方法获取点击的位置，用Province变量保存下来
                     selectedProvince = provinceList.get(position);
-                    //调用queryCities()方法查询选中省内所有的省
+                    //调用queryCities()方法查询选中省内所有的市
                     queryCities();
+                    //当点击ListView点击级别为LEVEL_CITY = 1常量时
                 }else if (currentLevel == LEVEL_CITY){
+                    //代表市列表的List数组调用get()方法获取点击的位置，用City变量保存下来
                     seletedCity = cityList.get(position);
+                    //调用queryCounties()方法查询当前市内所有的县
                     queryCounties();
                 }
             }
         });
+        //给返回Button注册一个点击事件监听器，当ListView被点击时就会回调onClick()方法
         backButton.setOnClickListener(new View.OnClickListener() {
             @Override
+            //在该方法中写具体的点击事件逻辑
             public void onClick(View v) {
+                //当点击返回Button点击级别为LEVEL_COUNTY = 2常量时
                 if (currentLevel == LEVEL_COUNTY){
+                    //调用queryCities()方法查询选中省内所有的市
                     queryCities();
+                    //当点击返回Button点击级别为LEVEL_CITY = 1常量时
                 }else if (currentLevel == LEVEL_CITY){
+                    //调用queryProvinces()方法查询全国所有的省
                     queryProvinces();
                 }
             }
@@ -133,15 +153,220 @@ public class ChooseAreaFragment extends Fragment {
         queryProvinces();
     }
 
+    //queryProvinces()方法查询全国所有的省，优先从数据库查询，如果数据库没有查询到数据再去服务器上查询
     private void queryProvinces(){
-
+        //TextView调用setText()方法设置头布局的文字
+        titleText.setText("中国");
+        //返回Button调用setVisibility()方法参数传入VIEW.GONE将返回键隐藏
+        backButton.setVisibility(View.GONE);
+        //调用LitePal.findAll()方法来查询表中的所有数据，通过findAll()方法的参数指定查询的表
+        //将查询后的数据用List数组保存下来
+        provinceList = LitePal.findAll(Province.class);
+        //用来存放数据表中数组调用size()方法获取的长度大于0时，遍历数组中的数据
+        if (provinceList.size() > 0){
+            //调用clear()方法清除掉List数组中的数据
+            dataList.clear();
+            //遍历List集合中Province数据表的数据
+            for (Province province : provinceList){
+                //将Province数据表的省的名字这一列数据，通过Province实体类的getProvinceName()方法获取
+                //通过List数组调用add()方法将获取的数据放入List数组中
+                dataList.add(province.getProvinceName());
+            }
+            //调用ArrayAdapter适配器的notifyDataSetChanged()方法通知数据发生了变化
+            adapter.notifyDataSetChanged();
+            //ListView调用setSelection()方法，参数传入0，表示将第一项的数据放在ListView的第一个条目
+            listView.setSelection(0);
+            //设置当前列的选中级别为常量 LEVEL_PROVINCE = 0.
+            currentLevel = LEVEL_PROVINCE;
+        }else {
+            //声明一个String赋值全国所有省接口的URL
+            String address = "http://guolin.tech/api/china";
+            //调用queryFromServer()方法从服务器上查询数据
+            queryFromServer(address,"province");
+        }
     }
 
+    //查询选中省内所有的市，优先从数据库查询，如果数据库中没有查询到数据再去服务器上查询
     private void queryCities(){
-
+        //TextView调用setText()方法设置头布局的文字，selectedProvince.getProvinceName()方法得到选中省的名字
+        titleText.setText(selectedProvince.getProvinceName());
+        //返回Button调用setVisibility()方法参数传入VIEW.VISIBLE将返回键显示出来
+        backButton.setVisibility(View.VISIBLE);
+        //LitePal.where()方法用于指定查询的约束条件，对应了SQL当作的where关键字
+        //下面就是只查获取到的City数据表中的provinceid这一列等于选中省的id(selectedProvince.getId()方法得到选中省id)
+        //find()方法指定具体哪一个数据表中查询数据表
+        cityList = LitePal.where("provinceid = ?",
+                String.valueOf(selectedProvince.getId())).find(City.class);
+        //用来存放数据表中数组调用size()方法获取的长度大于0时，遍历数组中的数据
+        if (cityList.size() > 0 ){
+            //调用clear()方法清除掉List数组中的数据
+            dataList.clear();
+            //遍历List集合中Province数据表的数据
+            for (City city : cityList){
+                //将City数据表的市的名字这一列数据，通过City实体类的getCityName()方法获取
+                //通过List数组调用add()方法将获取的数据放入List数组中
+                dataList.add(city.getCityName());
+            }
+            //调用ArrayAdapter适配器的notifyDataSetChanged()方法通知数据发生了变化
+            adapter.notifyDataSetChanged();
+            //ListView调用setSelection()方法，参数传入0，表示将第一项的数据放在ListView的第一个条目
+            listView.setSelection(0);
+            //设置当前列的选中级别为常量 LEVEL_CITY = 1.
+            currentLevel = LEVEL_CITY;
+        }else {
+            //通过Province选中的省份调用getProvinceCode()方法获取到省的代号
+            //这个省的代号是请求市的接口URL组装的参数，并保存下来
+            int provinceCode = selectedProvince.getProvinceCode();
+            //声明一个String赋值所选中省下的所有市的接口URL，为全国省的接口加上选中省的代号
+            String address = "http://guolin.tech/api/china/" + provinceCode;
+            //调用queryFromServer()方法从服务器上查询数据
+            queryFromServer(address,"City");
+        }
     }
 
+    //查询选中市内所有的县，优先从数据库查询，如果数据库没有查询到数据，再去服务器请求数据
     private void queryCounties(){
+        //TextView调用setText()方法设置头布局的文字，seletedCity.getCityName()方法得到选中省的名字
+        titleText.setText(seletedCity.getCityName());
+        //返回Button调用setVisibility()方法参数传入VIEW.VISIBLE将返回键显示出来
+        backButton.setVisibility(View.VISIBLE);
+        //LitePal.where()方法用于指定查询的约束条件，对应了SQL当作的where关键字
+        //下面就是只查获取到的County数据表中的cictyid这一列等于选中市的id(seletedCity.getId()方法得到选中市id)
+        //find()方法指定具体哪一个数据表中查询数据表
+        countyList = LitePal.where("cictyid = ?",String.valueOf(seletedCity.getId()))
+                .find(County.class);
+        //用来存放数据表中数组调用size()方法获取的长度大于0时，遍历数组中的数据
+        if (countyList.size() > 0){
+            //调用clear()方法清除掉List数组中的数据
+            dataList.clear();
+            //遍历List集合中Province数据表的数据
+            for (County county:countyList){
+                //将County数据表的县的名字这一列数据，通过County实体类的getCountyName()方法获取
+                //通过List数组调用add()方法将获取的数据放入List数组中
+                dataList.add(county.getCountyName());
+            }
+            //调用ArrayAdapter适配器的notifyDataSetChanged()方法通知数据发生了变化
+            adapter.notifyDataSetChanged();
+            //ListView调用setSelection()方法，参数传入0，表示将第一项的数据放在ListView的第一个条目
+            listView.setSelection(0);
+            //设置当前列的选中级别为常量 LEVEL_COUNTY = 2.
+            currentLevel = LEVEL_COUNTY;
+        }else {
+            //通过Province实体类变量selectedProvince(代表选中的省份)调用getProvinceCode()方法获取到省的代号
+            //这个省的代号是请求市的接口URL组装的参数，并保存下来
+            int provinceCode = selectedProvince.getProvinceCode();
+            //通过CityCode实体类变量seletedCity(代表选中的城市)调用getCityCode()方法获取到市的代号
+            //这个市的代号是请求市的接口URL组装的参数，并保存下来
+            int cityCode = seletedCity.getCityCode();
+            //声明一个String赋值查询某县的接口URL，为显示全国所有省的接口URL加上 选中省的代号 加到 选中市的代号
+            String address = "http://guolin.tech/api/china"+provinceCode+"/"+cityCode;
+            //调用queryFromServer()方法从服务器上查询数据
+            queryFromServer(address,"county");
+        }
+    }
 
+    //根据传入的地址和类型从服务器上查询省市县的数据
+    private void queryFromServer(String address , final String type){
+        //进入queryFromServer()方法时就让dialog显示出来，代表请求服务器
+        showProgressDialog();
+        //调用类方法sendOkHtpRequest()来发送网络请求
+        HttpUtil.sendOkHttpRequest(address, new okhttp3.Callback() {
+            @Override
+            //重写onFailure()方法对请求服务器发送异常状况时进行相应的处理
+            public void onFailure(Call call, IOException e) {
+                //当前活动的上下文调用runOnUiThread()方法将子线程切换成主线程
+                //因为接下来调用的方法有更新UI的操作
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        //请服务器失败时，调用closeProgressDialog()方法关闭dialog
+                        closeProgressDialog();
+                        //弹出toast提示
+                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            //服务器返回的数据会回调到onResponse()方法中
+            public void onResponse(Call call, Response response) throws IOException {
+                //Response对象调用body()方法得到返回数据的具体内容，再调用string()方法将数据转换成字符串形式
+                //最后声明一个Sting变量保存下来
+                String responseText = response.body().string();
+                boolean result = false;
+                //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
+                if ("province".equals(type)){
+                    //调用类方法handleProvinceResponse()，在该方法的参数传入服务器返回数据的具体内容
+                    //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
+                    result = Utility.handleProvinceResponse(responseText);
+                //else if判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
+                }else if ("City".equals(type)){
+                    //调用类方法handleCityResponse()，在该方法的参数传入服务器返回数据的具体内容
+                    //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
+                    result = Utility.handleCityResponse(responseText,selectedProvince.getId());
+                //else if判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
+                }else if ("County".equals(type)){
+                    //调用类方法handleCountyResponse()，在该方法的参数传入服务器返回数据的具体内容
+                    //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
+                    result = Utility.handleCountyResponse(responseText,seletedCity.getId());
+                }
+                //当布尔变量result变量为true时，进入if代码块
+                if (result){
+                    //当前活动的上下文调用runOnUiThread()方法将子线程切换成主线程
+                    //因为接下来调用的几个查询方法都有更新UI的操作
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            //调用closeProgressDialog()方法关闭dialog
+                            closeProgressDialog();
+                            //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，
+                            //一致进入if代码块
+                            if ("province".equals(type)){
+                                //调用queryProvinces()方法查询全国所有省的数据
+                                //因为现在数据库中已经存储了数据，
+                                queryProvinces();
+                            //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，
+                            //一致进入if代码块
+                            }else if ("City".equals(type)){
+                                //调用queryCities()方法查询全国所有省的数据
+                                //因为现在数据库中已经存储了数据，
+                                queryCities();
+                            //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，
+                            //一致进入if代码块
+                            }else if ("County".equals(type)){
+                                //调用queryCounties()方法查询全国所有省的数据
+                                //因为现在数据库中已经存储了数据，
+                                queryCounties();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    //showProgressDialog()显示进度对话框
+    private void showProgressDialog(){
+        //当ProgressDialog进度对话框变量为null时
+        if (progressDialog == null){
+            //构建ProgressDialog的实例，构造参数传入一个context对象
+            progressDialog = new ProgressDialog(getActivity());
+            //ProgressDialog的实例调用setMessage()方法给进度对话框设置内容
+            progressDialog.setMessage("正在加载...");
+            //ProgressDialog的实例调用setCanceledOnTouchOutside()方法，表示进度对话框出现后点击屏幕不消失
+            //点击物理返回键dialog消失
+            progressDialog.setCanceledOnTouchOutside(false);
+        }
+        //ProgressDialog的实例调用show（）方法将dialog显示出来
+        progressDialog.show();
+    }
+
+    //关闭进度对话框dialog
+    private void closeProgressDialog(){
+        //当ProgressDialog进度对话框彼岸了不为null时
+        if (progressDialog != null){
+            ////ProgressDialog的实例调用dismiss()方法关闭进度对话框Dialog
+            progressDialog.dismiss();
+        }
     }
 }

@@ -15,7 +15,7 @@ public class Utility {
 
     //解析和处理服务器返回的省级数据
     public static boolean handleProvinceResponse(String response){
-        //使用TextUtils.isEmpty()方法判断调用handleProvinceResponse()方法传入的String参数response是否为null
+        //使用TextUtils.isEmpty()方法判断某个对象调用handleProvinceResponse()方法传入的String参数response是否为null
         if (!TextUtils.isEmpty(response)){
             try {
                 //由于服务器中定义的是一个JSON数组，因此这里首先是将服务器返回的数据传入到一个JSONArray对象中
@@ -45,7 +45,7 @@ public class Utility {
 
     //解析和处理服务器返回的市级数据
     public static boolean handleCityResponse(String response , int provinceId){
-        //使用TextUtils.isEmpty()方法判断调用handleProvinceResponse()方法传入的String参数response是否为null
+        //使用TextUtils.isEmpty()方法判断某个调用handleCityResponse()方法传入的String参数response是否为null
         if (!TextUtils.isEmpty(response)){
             try {
                 //由于服务器中定义的是一个JSON数组，因此这里首先是将服务器返回的数据传入到一个JSONArray对象中
