@@ -5,6 +5,8 @@ import android.text.TextUtils;
 import com.example.coolweather.db.City;
 import com.example.coolweather.db.County;
 import com.example.coolweather.db.Province;
+import com.example.coolweather.gson.Weather;
+import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -109,5 +111,25 @@ public class Utility {
         }
         //服务器返回的数据为null时，返回false；
         return false;
+    }
+
+    //将返回的JSON数据解析成Weather实体类
+    public static Weather handleWeatherResponse(String response){
+        try {
+            //将调用handleWeatherResponse()方法传入的String字符串转化为JSONObject对象
+            JSONObject jsonObject = new JSONObject(response);
+            //JSONObject对象调用getJSONArray()方法取出头部为指定HeWeather的数组并保存
+            JSONArray jsonArray = jsonObject.getJSONArray("HeWeather");
+            //将保存HeWeather数组的对象调用getJSONObject()方法取出下标为0的数组数据，然后toString()转化为字符串
+            String weatherContent = jsonArray.getJSONObject(0).toString();
+            //返回Weather对象
+            //Gson对象调用fromJson()方法将JSON你数组转换成指定类型的数据对象
+            //该方法有两个参数，第一个参数是JSON字符串，第二个参数是需要转换成对象的类型
+            return new Gson().fromJson(weatherContent,Weather.class);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        //发送异常则返回null
+        return null;
     }
 }

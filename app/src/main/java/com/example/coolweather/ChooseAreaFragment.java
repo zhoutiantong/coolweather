@@ -1,6 +1,7 @@
 package com.example.coolweather;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -35,7 +36,7 @@ import okhttp3.Response;
 //创建一个选择区域碎片
 public class ChooseAreaFragment extends Fragment {
 
-    //静态常量
+    //静态常量，代表省市县的等级
     public static final int LEVEL_PROVINCE = 0 ;
 
     public static final int LEVEL_CITY = 1;
@@ -131,6 +132,34 @@ public class ChooseAreaFragment extends Fragment {
                     seletedCity = cityList.get(position);
                     //调用queryCounties()方法查询当前市内所有的县
                     queryCounties();
+                }else if (currentLevel == LEVEL_COUNTY){
+                    //代表县列表的List数组调用get()方法获取点击的位置,返回的是County对象
+                    //在调用getWeatherId()方法获取到县对应的天气id，声明一个变量保存下来
+                    String weatherId = countyList.get(position).getWeatherId();
+                    //调用getActivity()方法获取当前碎片在哪个活动当中，配合instanceof关键字来判断
+                    //如果是在MainActivity活动中处理逻辑不变
+                    if (getActivity() instanceof MainActivity) {
+                        //构建Intent的实例，参数为显性Intent，表示当前活动跳转到下一个活动
+                        Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                        //Intent的实例调用putExtra()方法将数据传入下一个活动
+                        intent.putExtra("weather_id", weatherId);
+                        //调用startActivity()方法开启活动的跳转，参数传入Intent对象
+                        startActivity(intent);
+                        //在跳转后将当前活动销毁
+                        getActivity().finish();
+                        //如果当前碎片在WeatherActivity活动中，关闭滑动菜单，显示下拉刷新进度条
+                        //然后请求新城市的天气信息
+                    }else if (getActivity() instanceof  WeatherActivity){
+                        //获取到WeatherActivity活动的实例
+                        WeatherActivity activity = (WeatherActivity) getActivity();
+                        //WeatherActivity活动中的DrawerLayout的实例调用closeDrawers()方法关闭滑动菜单
+                        activity.drawerLayout.closeDrawers();
+                        // //WeatherActivity活动中的SwipeRefreshLayout实例调用setRefreshing()方法显示下拉刷新的进度条
+                        activity.swipeRefresh.setRefreshing(true);
+                        //WeatherActivity活动的实例请求新城市的天气ID。
+                        activity.requestWeather(weatherId);
+
+                    }
                 }
             }
         });
@@ -220,7 +249,7 @@ public class ChooseAreaFragment extends Fragment {
             //声明一个String赋值所选中省下的所有市的接口URL，为全国省的接口加上选中省的代号
             String address = "http://guolin.tech/api/china/" + provinceCode;
             //调用queryFromServer()方法从服务器上查询数据
-            queryFromServer(address,"City");
+            queryFromServer(address,"city");
         }
     }
 
@@ -233,7 +262,7 @@ public class ChooseAreaFragment extends Fragment {
         //LitePal.where()方法用于指定查询的约束条件，对应了SQL当作的where关键字
         //下面就是只查获取到的County数据表中的cictyid这一列等于选中市的id(seletedCity.getId()方法得到选中市id)
         //find()方法指定具体哪一个数据表中查询数据表
-        countyList = LitePal.where("cictyid = ?",String.valueOf(seletedCity.getId()))
+        countyList = LitePal.where("cityid = ?",String.valueOf(seletedCity.getId()))
                 .find(County.class);
         //用来存放数据表中数组调用size()方法获取的长度大于0时，遍历数组中的数据
         if (countyList.size() > 0){
@@ -259,7 +288,7 @@ public class ChooseAreaFragment extends Fragment {
             //这个市的代号是请求市的接口URL组装的参数，并保存下来
             int cityCode = seletedCity.getCityCode();
             //声明一个String赋值查询某县的接口URL，为显示全国所有省的接口URL加上 选中省的代号 加到 选中市的代号
-            String address = "http://guolin.tech/api/china"+provinceCode+"/"+cityCode;
+            String address = "http://guolin.tech/api/china/"+provinceCode+"/"+cityCode;
             //调用queryFromServer()方法从服务器上查询数据
             queryFromServer(address,"county");
         }
@@ -296,17 +325,20 @@ public class ChooseAreaFragment extends Fragment {
                 boolean result = false;
                 //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
                 if ("province".equals(type)){
-                    //调用类方法handleProvinceResponse()，在该方法的参数传入服务器返回数据的具体内容
+                    //调用类方法handleProvinceResponse()解析服务器返回的数据，
+                    //在该方法的参数传入服务器返回数据的具体内容
                     //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
                     result = Utility.handleProvinceResponse(responseText);
                 //else if判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
-                }else if ("City".equals(type)){
-                    //调用类方法handleCityResponse()，在该方法的参数传入服务器返回数据的具体内容
+                }else if ("city".equals(type)){
+                    //调用类方法handleCityResponse()解析服务器返回的数据，
+                    //在该方法的参数传入服务器返回数据的具体内容
                     //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
                     result = Utility.handleCityResponse(responseText,selectedProvince.getId());
                 //else if判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，一致进入if代码块
-                }else if ("County".equals(type)){
-                    //调用类方法handleCountyResponse()，在该方法的参数传入服务器返回数据的具体内容
+                }else if ("county".equals(type)){
+                    //调用类方法handleCountyResponse()解析服务器返回的数据，
+                    //在该方法的参数传入服务器返回数据的具体内容
                     //当服务器返回的数据不为null时，该方法返回true，并保存到数据库，用前面声明的布尔变量保存下来
                     result = Utility.handleCountyResponse(responseText,seletedCity.getId());
                 }
@@ -327,13 +359,13 @@ public class ChooseAreaFragment extends Fragment {
                                 queryProvinces();
                             //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，
                             //一致进入if代码块
-                            }else if ("City".equals(type)){
+                            }else if ("city".equals(type)){
                                 //调用queryCities()方法查询全国所有省的数据
                                 //因为现在数据库中已经存储了数据，
                                 queryCities();
                             //判断调用queryFromServer()方法时，传入的第二个参数是否和我需要的参数一致，
                             //一致进入if代码块
-                            }else if ("County".equals(type)){
+                            }else if ("county".equals(type)){
                                 //调用queryCounties()方法查询全国所有省的数据
                                 //因为现在数据库中已经存储了数据，
                                 queryCounties();

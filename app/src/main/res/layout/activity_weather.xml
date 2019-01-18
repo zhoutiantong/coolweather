@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--显示天气信息的活动的布局-->
+<!--最外层布局使用FrameLayout帧布局-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorPrimary">
+
+    <!--设置背景图片的控件-->
+    <ImageView
+        android:id="@+id/bing_pic_img"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"/>
+
+    <android.support.v4.widget.DrawerLayout
+        android:id="@+id/drawer_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+        <!--再ScrollView外面嵌套一层SwipeRefreshLayout，这样ScrollView就有自动刷新的功能了-->
+        <android.support.v4.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+            <!--第二层布局使用ScrollView，以滚动形式查看屏幕外的内容-->
+            <!--scrollbars设置滚动条模式，none表示无滚动条-->
+            <!--overScrollMode设置滚动效果，never表示无滚动效果-->
+            <ScrollView
+            android:id="@+id/weather_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="none"
+            android:overScrollMode="never">
+
+
+                <!--在ScrollView中嵌套一个LinearLayout-->
+                <!--因为在ScrollView的内部只允许存在一个子布局的-->
+                <!--如果想要放入很多内容通常就嵌套一个LinearLayout-->
+                <!--android:fitsSystemWindows="true"表示会为系统状态栏留出空间-->
+                <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fitsSystemWindows="true">
+
+
+                    <!--通过include引入显示天气信息的活动的头部布局-->
+                    <include layout="@layout/title"/>
+
+
+                    <!--通过include引入显示天气信息的活动的当前天气信息布局-->
+                    <include layout="@layout/now"/>
+
+
+                    <!--通过include引入显示天气信息的活动的未来几天天气信息的布局-->
+                    <include layout="@layout/forecast"/>
+
+
+                    <!--通过include引入显示天气信息的活动的空气质量信息的布局-->
+                    <include layout="@layout/aqi"/>
+
+
+                    <!--通过include引入显示天气信息的活动的生活建议信息的布局-->
+                    <include layout="@layout/suggestion"/>
+
+
+                </LinearLayout>
+
+
+            </ScrollView>
+
+
+        </android.support.v4.widget.SwipeRefreshLayout>
+
+        <fragment
+            android:id="@+id/choose_area_fragment"
+            android:name="com.example.coolweather.ChooseAreaFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"/>
+
+    </android.support.v4.widget.DrawerLayout>
+
+</FrameLayout>
